@@ -1,3 +1,4 @@
+#!./env/bin/python
 import exifread
 import re
 from os import walk, path, renames
@@ -5,6 +6,11 @@ from hachoir_metadata import extractMetadata
 from hachoir_parser import createParser
 from hachoir_core.cmd_line import unicodeFilename
 import hashlib
+import argparse
+import logging
+
+logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 def file_md5(fpath):
@@ -75,12 +81,12 @@ def move_iv_file(fpath, exif_date, rootpath, prefix='photo_'):
     suffix = fpath.split('.')[-1].lower()
     new_fpath = get_new_fpath(rootpath, exif_date, prefix, suffix)
     if new_fpath is None:
-        print "No valid new path"
+        logger.info("No valid new path for file {}".format(fpath))
         return fpath
     while path.exists(new_fpath):
         # check if duplicate
         if file_md5(new_fpath) == file_md5(fpath):
-            print 'Duplicate files: {}\t{}'.format(fpath, new_fpath)
+            logger.info('Duplicate files: {}\t{}'.format(fpath, new_fpath))
             return None
         new_fpath = shift_path(new_fpath)
     renames(fpath, new_fpath)
@@ -127,38 +133,48 @@ def fix_jounia920_video_ts(vpath):
     if new_ts is None:
         return vpath
 
-    return (vpath[0], new_ts)
+    return(vpath[0], new_ts)
 
-if __name__ == '__main__':
-    new_rootpath = '/Users/jkallunk/Pictures/Personal'
-    old_rootpath = '/Users/jkallunk/Pictures/import'
-    failed_folder = '/Users/jkallunk/Pictures/failedpics'
+
+def main():
+    logger.info("Starting photo rename")
+    parser = argparse.ArgumentParser(description="Rename photos")
+    parser.add_argument("-i", "--input", help="input photo directory")
+    parser.add_argument("-o", "--output", help="output photo directory")
+    parser.add_argument("-f", "--failed", help="failed renaming directory")
+    args = parser.parse_args()
+
+    new_rootpath = args.output
+    old_rootpath = args.input
+    failed_folder = args.failed or './fail'
+    logger.info('input path: {}'.format(old_rootpath))
+    logger.info('output path: {}'.format(new_rootpath))
+    logger.info('failed path: {}'.format(failed_folder))
 
     image_paths, video_paths = find_vid_img_files(old_rootpath)
     video_paths = [fix_jounia920_video_ts(x) for x in video_paths]
     failed = []
 
+    logger.info('renaming {} photos'.format(len(image_paths)))
     for fpath, exif_date in image_paths:
         fail = move_iv_file(fpath, exif_date, new_rootpath, prefix='photo_')
         if fail is not None:
             failed.append(fail)
 
+    logger.info('renaming {} videos'.format(len(video_paths)))
     for fpath, exif_date in video_paths:
         fail = move_iv_file(fpath, exif_date, new_rootpath, prefix='video_')
         if fail is not None:
             failed.append(fail)
 
+    logger.info('failed to rename {} files'.format(len(failed)))
+    logger.info('moving failed files to {}'.format(failed_folder))
     for fpath in failed:
         move_failed(fpath, failed_folder)
+    logger.info('done!')
 
-#    fnames_old = []
-#    fnames_new = []
-#    for root, dirs, fnames in walk('/Users/jkallunk/Pictures/Jounin'):
-#        for fname in fnames:
-#            fname_new = fname .replace('-', 'T').replace(':', '-')
-#            fnames_new.append(path.join(root, fname_new))
-#            fnames_old.append(path.join(root, fname))#
-
-#    xx = zip(fnames_old, fnames_new)
-#    for o,n in xx:
-#        renames(o,n)
+if __name__ == '__main__':
+    main()
+    # new_rootpath = '/Users/jkallunk/Pictures/Personal'
+    # old_rootpath = '/Users/jkallunk/Pictures/iPhoto Library.photolibrary/Masters/2015'
+    # failed_folder = '/Users/jkallunk/Pictures/failedpics'
