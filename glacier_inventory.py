@@ -26,12 +26,13 @@ def get_vault_inventory(job_id, account_id=None, vault_name=None, region=None):
     if job.completed:
         inventory_response = job.get_output()
         inventory_json = inventory_response['body'].read()
+        inventory = json.loads(inventory_json)
         dt_str = datetime.today().strftime('%Y-%m-%d')
         fname = 'inventory-{}.json'.format(dt_str)
+        logger.info('Writing inventory to file {}'.format(fname))
         with open(fname, 'w') as f:
-            f.write(inventory_json)
-        logger('Writing inventory to file {}'.format(fname))
-        return json.loads(inventory_json)
+            json.dump(inventory, f, indent=2)
+        return inventory
     else:
         logger.info('Job {} not completed'.format(job_id))
 

@@ -5,6 +5,7 @@ from datetime import datetime
 from zipfile import ZipFile, ZIP_STORED
 import argparse
 import logging
+import hashlib
 
 logging.basicConfig(format='%(asctime)s:%(name)s:%(levelname)s:%(message)s',
                     level=logging.INFO)
@@ -13,18 +14,31 @@ logger = logging.getLogger(__name__)
 VAULT_NAME = 'new-photos'
 ACCOUNT_ID = '-'
 REGION = 'eu-west-1'
+BLOCKSIZE = 65536
+
+def get_checksum(fname):
+    hasher = hashlib.md5()
+    with open(fname, 'rb') as afile:
+        buf = afile.read(BLOCKSIZE)
+        while len(buf) > 0:
+            hasher.update(buf)
+            buf = afile.read(BLOCKSIZE)
+    return hasher.hexdigest()
 
 def leaf_dirs(rootdir):
     for root, dirs, fnames in os.walk(rootdir):
         if len(dirs) == 0:
             yield root, fnames
 
-def upload_archive(archive_name, description=None,
+def upload_archive(archive_name, description=None, add_checksum=True,
                    vault_name=VAULT_NAME, account_id=ACCOUNT_ID):
     logger.info('Uploading archive {} to vault {}'.format(archive_name, vault_name))
     glacier = boto3.resource('glacier', region_name=REGION)
     vault = glacier.Vault(account_id, vault_name)
     description = description or archive_name
+    if add_checksum:
+        checksum = get_checksum(archive_name)
+        description = '{} {}'.format(description, checksum)
     archive = vault.upload_archive(archiveDescription=description, body=archive_name)
     info = {
         'account_id': archive.account_id,
