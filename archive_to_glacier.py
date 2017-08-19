@@ -44,15 +44,20 @@ def upload_archive(ctx, archive_name, vault_name=None, account_id=None, region=N
         checksum = get_checksum(archive_name)
         description = '{} {}'.format(description, checksum)
     archive = vault.upload_archive(archiveDescription=description, body=archive_name)
+    splitted = archive_name.split('/')
+    outdir = '/'.join(splitted[:-1]) + '/glacier-meta'
     info = {
         'account_id': archive.account_id,
         'vault_name': archive.vault_name,
-        'archive_name': archive_name,
+        'archive_name': splitted[-1],
         'id': archive.id,
         'description': description,
         'datetime': datetime.today().strftime('%Y-%m-%d:%H:%M:%S')
     }
-    with open('glacier-archive-{}.json'.format(archive_name.split('/')[-1]), 'w') as f:
+    if not os.path.isdir(outdir):
+        logger.info('creating {}'.format(outdir))
+        os.makedirs(outdir)
+    with open('{}/glacier-archive-{}.json'.format(outdir, splitted[-1]), 'w') as f:
         json.dump(info, f)
     return archive
 
