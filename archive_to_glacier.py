@@ -3,7 +3,6 @@ import os
 import json
 from datetime import datetime
 from zipfile import ZipFile, ZIP_STORED
-import argparse
 import logging
 import hashlib
 
@@ -11,9 +10,7 @@ logging.basicConfig(format='%(asctime)s:%(name)s:%(levelname)s:%(message)s',
                     level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-VAULT_NAME = 'new-photos'
-ACCOUNT_ID = '-'
-REGION = 'eu-west-1'
+CONFIG = json.load(open('config.json'))
 BLOCKSIZE = 65536
 
 def get_checksum(fname):
@@ -30,12 +27,20 @@ def leaf_dirs(rootdir):
         if len(dirs) == 0:
             yield root, fnames
 
-def upload_archive(archive_name, description=None, add_checksum=True,
-                   vault_name=VAULT_NAME, account_id=ACCOUNT_ID):
+def create_vault(vault_name):
+    glacier = boto3.resource('glacier')
+    vault = glacier.create_vault(vaultName=vault_name)
+    return vault
+
+def upload_archive(archive_name, description=None, add_checksum=True, vault_name=None,
+                   account_id=None, region=None):
+    account_id = account_id or CONFIG['ACCOUNT_ID']
+    vault_name = vault_name or CONFIG['VAULT_NAME']
+    region = region or CONFIG['REGION']
     logger.info('Uploading archive {} to vault {}'.format(archive_name, vault_name))
-    glacier = boto3.resource('glacier', region_name=REGION)
+    glacier = boto3.resource('glacier', region_name=region)
     vault = glacier.Vault(account_id, vault_name)
-    description = description or archive_name
+    description = description or archive_name.split('/')[-1]
     if add_checksum:
         checksum = get_checksum(archive_name)
         description = '{} {}'.format(description, checksum)
@@ -48,7 +53,7 @@ def upload_archive(archive_name, description=None, add_checksum=True,
         'description': description,
         'datetime': datetime.today().strftime('%Y-%m-%d:%H:%M:%S')
     }
-    with open('glacier-archive-{}.json'.format(archive_name), 'w') as f:
+    with open('glacier-archive-{}.json'.format(archive_name.split('/')[-1]), 'w') as f:
         json.dump(info, f)
     return archive
 
@@ -68,13 +73,3 @@ def archive_tree(rootdir):
     logger.info('Creating archives from rootdir {}'.format(rootdir))
     for path, fnames in leaf_dirs(rootdir):
         create_archive(path, fnames)
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Rename photos')
-    parser.add_argument('-r', '--rootdir', help='root dir for archiving')
-    parser.add_argument('-v', '--vault_name',
-                        help='name of aws galcier vault',
-                        default=VAULT_NAME)
-    args = parser.parse_args()
-    if args.rootdir:
-        archive_tree(args.rootdir)
