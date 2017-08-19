@@ -61,6 +61,52 @@ def upload_archive(ctx, archive_name, vault_name=None, account_id=None, region=N
         json.dump(info, f)
     return archive
 
+def initiate_archive_download(ctx, archive_info, vault_name=None, account_id=None, region=None):
+    account_id = account_id or ctx.config.glacier.account_id
+    vault_name = vault_name or ctx.config.glacier.vault_name
+    region = region or ctx.config.glacier.region
+    logger.info('Initiating archive {} download'.format(archive_info['id']))
+    glacier = boto3.resource('glacier', region_name=region)
+    vault = glacier.Vault(account_id, vault_name)
+    archive = vault.Archive(archive_info['id'])
+    job = archive.initiate_archive_retrieval()
+    dt_str = datetime.today().strftime('%Y-%m-%d')
+    fname = 'archive-download-job-{}.json'.format(dt_str)
+    with open(fname, 'w') as f:
+        json.dump({
+            'account_id': job.account_id,
+            'vault_name': job.vault_name,
+            'id': job.id
+        }, f)
+    logger.info('Writing archive download job info to {}'.format(fname))
+    return job
+
+def download_archive(ctx, job_info=None, job_id=None, account_id=None,
+                     vault_name=None, region=None):
+    account_id = account_id or ctx.config.glacier.account_id
+    vault_name = vault_name or ctx.config.glacier.vault_name
+    region = region or ctx.config.glacier.region
+    if job_id is None and job_info is None:
+        logger.error('Must give either job_id or job_info!')
+        return None
+    glacier = boto3.resource('glacier', region_name=region)
+    if job_info is not None:
+        job = glacier.Job(**job_info)
+    else:
+        job = glacier.Job(account_id=account_id, vault_name=vault_name, id=job_id)
+    job.reload()
+    if job.completed:
+        download_response = job.get_output()
+        checksum = download_response['checksum']
+        body = download_response['body']
+        description = download_response['description']
+        fname = description.split[' '][0]
+        logger.info('Writing downloaded archive to file {}'.format(fname))
+        with open(fname, 'wb') as f:
+            f.write(body.read())
+    else:
+        logger.info('Job {} not completed'.format(job_id))
+
 def create_archive(path, fnames):
     current_dir = os.getcwd()
     archive_name = '-'.join(path.split('/')[-2:]) + '.zip'

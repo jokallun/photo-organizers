@@ -31,3 +31,21 @@ def create_vault(ctx, vault_name):
 def upload_archive(ctx, archive_name, vault_name=None, account_id=None, region=None,
                    description=None, add_checksum=True):
     archive.upload_archive(ctx, archive_name, account_id, vault_name, region, description, add_checksum)
+
+@task
+def initiate_archive_download(ctx, archive_info, vault_name=None,
+                              account_id=None, region=None):
+    archive.initiate_archive_download(
+        ctx,
+        archive_info=json.load(open(archive_info)),
+        vault_name=vault_name,
+        account_id=account_id,
+        region=region
+    )
+
+@task
+def download_archive(ctx, job_info=None, job_id=None, account_id=None,
+                     vault_name=None, region=None):
+    if job_info is not None:
+        job_info = json.load(open(job_info))
+    archive.download_archive(ctx, job_info, job_id, account_id, vault_name, region)
