@@ -3,20 +3,19 @@ import json
 import glacier_inventory as glacier
 import archive_to_glacier as archive
 
-CONFIG = json.load(open('config.json'))
 
 @task
 def initiate_vault_inventory(ctx, account_id=None, vault_name=None):
-    glacier.initiate_vault_inventory(account_id, vault_name)
+    glacier.initiate_vault_inventory(ctx, account_id, vault_name)
 
 @task
 def get_vault_inventory(ctx, job_file, account_id=None, vault_name=None, region=None):
     job_info = json.load(open(job_file))
-    glacier.get_vault_inventory(job_info['id'], account_id, vault_name, region)
+    glacier.get_vault_inventory(ctx, job_info['id'], account_id, vault_name, region)
 
 @task
-def list_vaults(ctx, region_name=None):
-    vaults = glacier.list_vaults(region_name)
+def list_vaults(ctx, region=None):
+    vaults = glacier.list_vaults(ctx, region)
     print(json.dumps(vaults, indent=2))
 
 @task
@@ -29,5 +28,6 @@ def create_vault(ctx, vault_name):
     print(vault)
 
 @task
-def upload_archive(ctx, archive_name, account_id=None, vault_name=None):
-    archive.upload_archive(archive_name)
+def upload_archive(ctx, archive_name, vault_name=None, account_id=None, region=None,
+                   description=None, add_checksum=True):
+    archive.upload_archive(ctx, archive_name, account_id, vault_name, region, description, add_checksum)

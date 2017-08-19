@@ -6,11 +6,11 @@ from zipfile import ZipFile, ZIP_STORED
 import logging
 import hashlib
 
+
 logging.basicConfig(format='%(asctime)s:%(name)s:%(levelname)s:%(message)s',
                     level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-CONFIG = json.load(open('config.json'))
 BLOCKSIZE = 65536
 
 def get_checksum(fname):
@@ -32,11 +32,10 @@ def create_vault(vault_name):
     vault = glacier.create_vault(vaultName=vault_name)
     return vault
 
-def upload_archive(archive_name, description=None, add_checksum=True, vault_name=None,
-                   account_id=None, region=None):
-    account_id = account_id or CONFIG['ACCOUNT_ID']
-    vault_name = vault_name or CONFIG['VAULT_NAME']
-    region = region or CONFIG['REGION']
+def upload_archive(ctx, archive_name, vault_name=None, account_id=None, region=None, description=None, add_checksum=True):
+    account_id = account_id or ctx.config.glacier.account_id
+    vault_name = vault_name or ctx.config.glacier.vault_name
+    region = region or ctx.config.glacier.region
     logger.info('Uploading archive {} to vault {}'.format(archive_name, vault_name))
     glacier = boto3.resource('glacier', region_name=region)
     vault = glacier.Vault(account_id, vault_name)

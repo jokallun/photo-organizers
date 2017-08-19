@@ -3,20 +3,20 @@ import json
 from datetime import datetime
 import logging
 
+
 logging.basicConfig(format='%(asctime)s:%(name)s:%(levelname)s:%(message)s',
                     level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-CONFIG = json.load(open('config.json'))
-
-def list_vaults(region_name=CONFIG['REGION']):
-    client = boto3.client('glacier', region_name)
+def list_vaults(ctx, region=None):
+    region = region or ctx.config.glacier.region
+    client = boto3.client('glacier', region)
     return client.list_vaults()
 
-def get_vault_inventory(job_id, account_id=None, vault_name=None, region=None):
-    account_id = account_id or CONFIG['ACCOUNT_ID']
-    vault_name = vault_name or CONFIG['VAULT_NAME']
-    region = region or CONFIG['REGION']
+def get_vault_inventory(ctx, job_id, account_id=None, vault_name=None, region=None):
+    account_id = account_id or ctx.config.glacier.account_id
+    vault_name = vault_name or ctx.config.glacier.vault_name
+    region = region or ctx.config.glacier.region
     glacier = boto3.resource('glacier', region_name=region)
     job = glacier.Job(account_id=account_id, vault_name=vault_name, id=job_id)
     job.reload()
@@ -33,10 +33,10 @@ def get_vault_inventory(job_id, account_id=None, vault_name=None, region=None):
     else:
         logger.info('Job {} not completed'.format(job_id))
 
-def initiate_vault_inventory(account_id=None, vault_name=None, region=None):
-    account_id = account_id or CONFIG['ACCOUNT_ID']
-    vault_name = vault_name or CONFIG['VAULT_NAME']
-    region = region or CONFIG['REGION']
+def initiate_vault_inventory(ctx, account_id=None, vault_name=None, region=None):
+    account_id = account_id or ctx.config.glacier.account_id
+    vault_name = vault_name or ctx.config.glacier.vault_name
+    region = region or ctx.config.glacier.region
     logger.info('Initiating inventory for {}'.format(vault_name))
     glacier = boto3.resource('glacier', region_name=region)
     print(vault_name)
