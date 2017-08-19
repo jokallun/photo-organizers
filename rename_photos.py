@@ -1,6 +1,5 @@
 #!./env/bin/python
 import exifread
-import re
 from os import walk, path, renames
 from hachoir_metadata import extractMetadata
 from hachoir_parser import createParser
@@ -107,36 +106,6 @@ def get_ts_year(x):
         return None
 
 
-def get_jounia920_ts(x):
-    fname = x[0].split('/')[-1]
-    # ptrn = r'Jounia920_\d{8}_\d*\.mp4'
-    ptrn = r'Windows Phone_\d{8}_\d*\.mp4'
-    m = re.match(ptrn, fname)
-
-    if m is None:
-        return None
-
-    dt = re.search(r'\d{8}', fname).group()
-    y = dt[:4]
-    m = dt[4:6]
-    d = dt[6:8]
-
-    sec = fname.split('_')[-1].split('.')[0][-2:]
-    return '{}:{}:{} 00:00:{}'.format(y, m, d, sec)
-
-
-def fix_jounia920_video_ts(vpath):
-
-    if get_ts_year(vpath) > 2000:
-        return vpath
-
-    new_ts = get_jounia920_ts(vpath)
-    if new_ts is None:
-        return vpath
-
-    return(vpath[0], new_ts)
-
-
 def main():
     logger.info("Starting photo rename")
     parser = argparse.ArgumentParser(description="Rename photos")
@@ -153,7 +122,6 @@ def main():
     logger.info('failed path: {}'.format(failed_folder))
 
     image_paths, video_paths = find_vid_img_files(old_rootpath)
-    video_paths = [fix_jounia920_video_ts(x) for x in video_paths]
     failed = []
 
     logger.info('renaming {} photos'.format(len(image_paths)))
@@ -176,6 +144,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-    # new_rootpath = '/Users/jkallunk/Pictures/Personal'
-    # old_rootpath = '/Users/jkallunk/Pictures/iPhoto Library.photolibrary/Masters/2015'
-    # failed_folder = '/Users/jkallunk/Pictures/failedpics'
