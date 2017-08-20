@@ -1,11 +1,10 @@
-#!./env/bin/python
 import exifread
+from invoke import task
 from os import walk, path, renames
 from hachoir_metadata import extractMetadata
 from hachoir_parser import createParser
 from hachoir_core.cmd_line import unicodeFilename
 import hashlib
-import argparse
 import logging
 
 logging.basicConfig(format='%(asctime)s:%(name)s:%(levelname)s:%(message)s',
@@ -93,9 +92,9 @@ def move_iv_file(fpath, exif_date, rootpath, prefix='photo_'):
     return None
 
 
-def move_failed(fpath, failed_folder):
+def move_failed(fpath, failed_dir):
     fname = fpath.split('/')[-1]
-    new_fpath = path.join(failed_folder, fname)
+    new_fpath = path.join(failed_dir, fname)
     renames(fpath, new_fpath)
 
 
@@ -105,42 +104,40 @@ def get_ts_year(x):
     except:
         return None
 
+@task
+def rename_photos(ctx, input_dir, output_dir, failed_dir='./fail'):
+    """Rename photos found under input-dir
+    according to their timestamp and move them
+    to by-date organized folders under output-dir.
 
-def main():
+    If rename fails, the photo is moved to failed-dir,
+    which defaults to ./fail.
+
+    If renamed file exists, a md5 checksum is calculated
+    to check for duplicate file.
+    """
     logger.info("Starting photo rename")
-    parser = argparse.ArgumentParser(description="Rename photos")
-    parser.add_argument("-i", "--input", help="input photo directory")
-    parser.add_argument("-o", "--output", help="output photo directory")
-    parser.add_argument("-f", "--failed", help="failed renaming directory")
-    args = parser.parse_args()
+    logger.info('input path: {}'.format(input_dir))
+    logger.info('output path: {}'.format(output_dir))
+    logger.info('failed path: {}'.format(failed_dir))
 
-    new_rootpath = args.output
-    old_rootpath = args.input
-    failed_folder = args.failed or './fail'
-    logger.info('input path: {}'.format(old_rootpath))
-    logger.info('output path: {}'.format(new_rootpath))
-    logger.info('failed path: {}'.format(failed_folder))
-
-    image_paths, video_paths = find_vid_img_files(old_rootpath)
+    image_paths, video_paths = find_vid_img_files(input_dir)
     failed = []
 
     logger.info('renaming {} photos'.format(len(image_paths)))
     for fpath, exif_date in image_paths:
-        fail = move_iv_file(fpath, exif_date, new_rootpath, prefix='photo_')
+        fail = move_iv_file(fpath, exif_date, output_dir, prefix='photo_')
         if fail is not None:
             failed.append(fail)
 
     logger.info('renaming {} videos'.format(len(video_paths)))
     for fpath, exif_date in video_paths:
-        fail = move_iv_file(fpath, exif_date, new_rootpath, prefix='video_')
+        fail = move_iv_file(fpath, exif_date, output_dir, prefix='video_')
         if fail is not None:
             failed.append(fail)
 
     logger.info('failed to rename {} files'.format(len(failed)))
-    logger.info('moving failed files to {}'.format(failed_folder))
+    logger.info('moving failed files to {}'.format(failed_dir))
     for fpath in failed:
-        move_failed(fpath, failed_folder)
+        move_failed(fpath, failed_dir)
     logger.info('done!')
-
-if __name__ == '__main__':
-    main()
