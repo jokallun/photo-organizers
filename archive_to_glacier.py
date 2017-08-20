@@ -3,6 +3,7 @@ import os
 import json
 from datetime import datetime
 from zipfile import ZipFile, ZIP_STORED
+from invoke import task
 import logging
 import hashlib
 
@@ -27,12 +28,20 @@ def leaf_dirs(rootdir):
         if len(dirs) == 0:
             yield root, fnames
 
-def create_vault(vault_name):
+@task
+def create_vault(ctx, vault_name):
     glacier = boto3.resource('glacier')
     vault = glacier.create_vault(vaultName=vault_name)
-    return vault
+    print(vault)
 
-def upload_archive(ctx, archive_name, vault_name=None, account_id=None, region=None, description=None, add_checksum=True):
+@task
+def upload_archive(ctx, archive_name, vault_name=None, account_id=None,
+                   region=None, description=None, add_checksum=True):
+    """Upload an archive (file) to AWS glacier.
+    archive-name is a mandatory argument, others are optional.
+    vault-name, account-id and region default to values defined in photo-organizer.json file.
+    description defaults to name of file + md5 checksum
+    """
     account_id = account_id or ctx.config.glacier.account_id
     vault_name = vault_name or ctx.config.glacier.vault_name
     region = region or ctx.config.glacier.region
@@ -47,6 +56,9 @@ def upload_archive(ctx, archive_name, vault_name=None, account_id=None, region=N
         archiveDescription=description,
         body=open(archive_name, 'rb')
     )
+    write_archive_info(archive_name, archive)
+
+def write_archive_info(archive_name, archive):
     splitted = archive_name.split('/')
     outdir = '/'.join(splitted[:-1]) + '/glacier-meta'
     info = {
@@ -62,12 +74,13 @@ def upload_archive(ctx, archive_name, vault_name=None, account_id=None, region=N
         os.makedirs(outdir)
     with open('{}/glacier-archive-{}.json'.format(outdir, splitted[-1]), 'w') as f:
         json.dump(info, f)
-    return archive
 
+@task
 def initiate_archive_download(ctx, archive_info, vault_name=None, account_id=None, region=None):
     account_id = account_id or ctx.config.glacier.account_id
     vault_name = vault_name or ctx.config.glacier.vault_name
     region = region or ctx.config.glacier.region
+    archive_info = json.load(open(archive_info)),
     logger.info('Initiating archive {} download'.format(archive_info['id']))
     glacier = boto3.resource('glacier', region_name=region)
     vault = glacier.Vault(account_id, vault_name)
@@ -82,18 +95,19 @@ def initiate_archive_download(ctx, archive_info, vault_name=None, account_id=Non
             'id': job.id
         }, f)
     logger.info('Writing archive download job info to {}'.format(fname))
-    return job
 
-def download_archive(ctx, job_info=None, job_id=None, account_id=None,
+@task
+def download_archive(ctx, job_file=None, job_id=None, account_id=None,
                      vault_name=None, region=None):
     account_id = account_id or ctx.config.glacier.account_id
     vault_name = vault_name or ctx.config.glacier.vault_name
     region = region or ctx.config.glacier.region
-    if job_id is None and job_info is None:
-        logger.error('Must give either job_id or job_info!')
+    if job_id is None and job_file is None:
+        logger.error('Must give either job_id or job_file!')
         return None
     glacier = boto3.resource('glacier', region_name=region)
-    if job_info is not None:
+    if job_file is not None:
+        job_info = json.load(open(job_file))
         job = glacier.Job(**job_info)
     else:
         job = glacier.Job(account_id=account_id, vault_name=vault_name, id=job_id)
@@ -122,7 +136,10 @@ def create_archive(path, fnames):
             f.write('{}/{}'.format(relative_path, input_fname))
     os.chdir(current_dir)
 
-def archive_tree(rootdir):
+@task
+def archive_tree(ctx, rootdir):
+    """Create zip archive from contents below rootdir
+    """
     logger.info('Creating archives from rootdir {}'.format(rootdir))
     for path, fnames in leaf_dirs(rootdir):
         create_archive(path, fnames)
