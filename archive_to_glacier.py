@@ -43,7 +43,10 @@ def upload_archive(ctx, archive_name, vault_name=None, account_id=None, region=N
     if add_checksum:
         checksum = get_checksum(archive_name)
         description = '{} {}'.format(description, checksum)
-    archive = vault.upload_archive(archiveDescription=description, body=archive_name)
+    archive = vault.upload_archive(
+        archiveDescription=description,
+        body=open(archive_name, 'rb')
+    )
     splitted = archive_name.split('/')
     outdir = '/'.join(splitted[:-1]) + '/glacier-meta'
     info = {
@@ -99,8 +102,8 @@ def download_archive(ctx, job_info=None, job_id=None, account_id=None,
         download_response = job.get_output()
         checksum = download_response['checksum']
         body = download_response['body']
-        description = download_response['description']
-        fname = description.split[' '][0]
+        description = download_response['archiveDescription']
+        fname = description.split(' ')[0]
         logger.info('Writing downloaded archive to file {}'.format(fname))
         with open(fname, 'wb') as f:
             f.write(body.read())

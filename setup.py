@@ -7,7 +7,7 @@ setup(
     author_email="",
     description=("Tool for organizing and backuping photos"),
     entry_points={
-        'console_scripts': ['photo-tool = main:program.run']
+        'console_scripts': ['photo-organizer = main:program.run']
     },
     install_requires=[
         'appdirs==1.4.3',

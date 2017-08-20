@@ -30,6 +30,11 @@ def create_vault(ctx, vault_name):
 @task
 def upload_archive(ctx, archive_name, vault_name=None, account_id=None, region=None,
                    description=None, add_checksum=True):
+    """Upload an archive (file) to AWS glacier.
+    archive-name is a mandatory argument, others are optional.
+    vault-name, account-id and region default to values defined in photo-organizer.json file.
+    description defaults to name of file + md5 checksum
+    """
     archive.upload_archive(ctx, archive_name, account_id, vault_name, region, description, add_checksum)
 
 @task
