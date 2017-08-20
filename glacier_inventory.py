@@ -12,6 +12,11 @@ logger = logging.getLogger(__name__)
 
 @task
 def list_vaults(ctx, region=None):
+    """List vaults in given region
+
+    region argument is optional and defaults to value
+    in photo-organizer.json
+    """
     region = region or ctx.config.glacier.region
     client = boto3.client('glacier', region)
     vaults = client.list_vaults()
@@ -19,6 +24,14 @@ def list_vaults(ctx, region=None):
 
 @task
 def get_vault_inventory(ctx, job_file, account_id=None, vault_name=None, region=None):
+    """Download the vault inventory.
+
+    This can be run after the initiate-vault-inventory task
+    has ran.
+
+    job-file is the output of initiate-vault-inventory task,
+    other argments are optional and default to values in photo-organizer.json
+    """
     account_id = account_id or ctx.config.glacier.account_id
     vault_name = vault_name or ctx.config.glacier.vault_name
     region = region or ctx.config.glacier.region
@@ -41,6 +54,14 @@ def get_vault_inventory(ctx, job_file, account_id=None, vault_name=None, region=
 
 @task
 def initiate_vault_inventory(ctx, account_id=None, vault_name=None, region=None):
+    """Initiate the vault inventory job.
+
+    After the job has completed (3-5h), the inventory
+    can be downloaded with get-vault-inventory task.
+    Output file of this task is the input of get-vault-inventory
+
+    All argments are optional and default to values in photo-organizer.json
+    """
     account_id = account_id or ctx.config.glacier.account_id
     vault_name = vault_name or ctx.config.glacier.vault_name
     region = region or ctx.config.glacier.region

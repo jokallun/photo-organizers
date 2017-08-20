@@ -30,6 +30,8 @@ def leaf_dirs(rootdir):
 
 @task
 def create_vault(ctx, vault_name):
+    """Create a new vault.
+    """
     glacier = boto3.resource('glacier')
     vault = glacier.create_vault(vaultName=vault_name)
     print(vault)
@@ -77,6 +79,15 @@ def write_archive_info(archive_name, archive):
 
 @task
 def initiate_archive_download(ctx, archive_info, vault_name=None, account_id=None, region=None):
+    """Initiate the archive donwload job.
+
+    After the job has completed (3-5h), the archive
+    can be downloaded with download-archive task.
+    Output file of this task is the input of download-archive
+
+    archive-info is a json file containing the id of the archive.
+    Other argments are optional and default to values in photo-organizer.json
+    """
     account_id = account_id or ctx.config.glacier.account_id
     vault_name = vault_name or ctx.config.glacier.vault_name
     region = region or ctx.config.glacier.region
@@ -99,6 +110,14 @@ def initiate_archive_download(ctx, archive_info, vault_name=None, account_id=Non
 @task
 def download_archive(ctx, job_file=None, job_id=None, account_id=None,
                      vault_name=None, region=None):
+    """Download an archive.
+
+    This can be run after the initiate-archive-download task
+    has ran.
+
+    job-file is the output of initiate-archive-download task,
+    other argments are optional and default to values in photo-organizer.json
+    """
     account_id = account_id or ctx.config.glacier.account_id
     vault_name = vault_name or ctx.config.glacier.vault_name
     region = region or ctx.config.glacier.region
@@ -138,7 +157,7 @@ def create_archive(path, fnames):
 
 @task
 def archive_tree(ctx, rootdir):
-    """Create zip archive from contents below rootdir
+    """Create zip archive of rootdir content
     """
     logger.info('Creating archives from rootdir {}'.format(rootdir))
     for path, fnames in leaf_dirs(rootdir):
