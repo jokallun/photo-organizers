@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name="photo_organizer",
-    version='0.1.0',
+    version='0.1.1',
     author="Jouni Kallunki",
     author_email="",
     description=("Tool for organizing and backuping photos"),
@@ -27,5 +27,11 @@ setup(
         's3transfer==0.1.10',
         'six==1.10.0'
     ],
-    py_modules=['archive_to_glacier', 'glacier_inventory', 'rename_photos', 'tasks', 'main']
+    py_modules=[
+        'archive_to_glacier',
+        'glacier_inventory',
+        'rename_photos',
+        'aws_contexts',
+        'tasks',
+        'main']
 )

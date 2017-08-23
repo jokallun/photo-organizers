@@ -3,6 +3,7 @@ import json
 from invoke import task
 from datetime import datetime
 import logging
+from aws_contexts import GlacierCtx, VaultCtx, JobCtx
 
 
 logging.basicConfig(format='%(asctime)s:%(name)s:%(levelname)s:%(message)s',
@@ -17,10 +18,9 @@ def list_vaults(ctx, region=None):
     region argument is optional and defaults to value
     in photo-organizer.json
     """
-    region = region or ctx.config.glacier.region
-    client = boto3.client('glacier', region)
-    vaults = client.list_vaults()
-    print(json.dumps(vaults, indent=2))
+    with GlacierCtx(ctx, region) as glacier:
+        vaults = glacier.list_vaults()
+        print(json.dumps(vaults, indent=2))
 
 @task
 def get_vault_inventory(ctx, job_file, account_id=None, vault_name=None, region=None):
@@ -32,25 +32,22 @@ def get_vault_inventory(ctx, job_file, account_id=None, vault_name=None, region=
     job-file is the output of initiate-vault-inventory task,
     other argments are optional and default to values in photo-organizer.json
     """
-    account_id = account_id or ctx.config.glacier.account_id
-    vault_name = vault_name or ctx.config.glacier.vault_name
-    region = region or ctx.config.glacier.region
     job_info = json.load(open(job_file))
-    glacier = boto3.resource('glacier', region_name=region)
-    job = glacier.Job(**job_info)
-    job.reload()
-    if job.completed:
-        inventory_response = job.get_output()
-        inventory_json = inventory_response['body'].read()
-        inventory = json.loads(inventory_json)
-        dt_str = datetime.today().strftime('%Y%m%d-%H%M')
-        fname = 'inventory-{}.json'.format(dt_str)
-        logger.info('Writing inventory to file {}'.format(fname))
-        with open(fname, 'w') as f:
-            json.dump(inventory, f, indent=2)
-        return inventory
-    else:
-        logger.info('Job {} not completed'.format(job_id))
+    job_info['ctx'] = ctx
+    with JobCtx(**job_info) as job:
+        job.reload()
+        if job.completed:
+            inventory_response = job.get_output()
+            inventory_json = inventory_response['body'].read()
+            inventory = json.loads(inventory_json)
+            dt_str = datetime.today().strftime('%Y%m%d-%H%M')
+            fname = 'inventory-{}.json'.format(dt_str)
+            logger.info('Writing inventory to file {}'.format(fname))
+            with open(fname, 'w') as f:
+                json.dump(inventory, f, indent=2)
+            return inventory
+        else:
+            logger.info('Job {} not completed'.format(job.id))
 
 @task
 def initiate_vault_inventory(ctx, account_id=None, vault_name=None, region=None):
@@ -62,21 +59,18 @@ def initiate_vault_inventory(ctx, account_id=None, vault_name=None, region=None)
 
     All argments are optional and default to values in photo-organizer.json
     """
-    account_id = account_id or ctx.config.glacier.account_id
-    vault_name = vault_name or ctx.config.glacier.vault_name
-    region = region or ctx.config.glacier.region
-    logger.info('Initiating inventory for {}'.format(vault_name))
-    glacier = boto3.resource('glacier', region_name=region)
-    print(vault_name)
-    vault = glacier.Vault(account_id, vault_name)
-    job = vault.initiate_inventory_retrieval()
-    dt_str = datetime.today().strftime('%Y%m%d-%H%M')
-    fname = 'inventory-job-{}.json'.format(dt_str)
-    with open(fname, 'w') as f:
-        json.dump({'account_id': job.account_id,
-                   'vault_name': job.vault_name, 'id': job.id}, f)
-    logger.info('Writing vault inventory job info to {}'.format(fname))
-    return job
+    with VaultCtx(ctx, vault_name, account_id, region) as vault:
+        job = vault.initiate_inventory_retrieval()
+        dt_str = datetime.today().strftime('%Y%m%d-%H%M')
+        fname = 'inventory-job-{}.json'.format(dt_str)
+        with open(fname, 'w') as f:
+            json.dump({
+                'account_id': job.account_id,
+                'vault_name': job.vault_name,
+                'id': job.id
+            }, f, indent=2)
+            logger.info('Writing vault inventory job info to {}'.format(fname))
+            return job
 
 @task
 def delete_archives(ctx, file_list, account_id=None, vault_name=None, region=None):
@@ -87,16 +81,11 @@ def delete_archives(ctx, file_list, account_id=None, vault_name=None, region=Non
 
     Other  argments are optional and default to values in photo-organizer.json
     """
-    account_id = account_id or ctx.config.glacier.account_id
-    vault_name = vault_name or ctx.config.glacier.vault_name
-    region = region or ctx.config.glacier.region
-    logger.info('Initiating inventory for {}'.format(vault_name))
-    glacier = boto3.resource('glacier', region_name=region)
-    vault = glacier.Vault(account_id, vault_name)
     archive_infos = json.load(open(file_list))
-    for n, info in enumerate(archive_infos.get('ArchiveList')):
-        archive = vault.Archive(info['ArchiveId'])
-        archive.delete()
-        logger.info('deleted {}'.format(info['ArchiveId']))
-        if n % 100 == 0:
-            logger.info('Deleted {} archives'.format())
+    with VaultCtx(ctx, vaultName, account_id, region) as vault:
+        for n, info in enumerate(archive_infos.get('ArchiveList')):
+            archive = vault.Archive(info['ArchiveId'])
+            archive.delete()
+            logger.info('deleted {}'.format(info['ArchiveId']))
+            if n % 100 == 0:
+                logger.info('Deleted {} archives'.format())
