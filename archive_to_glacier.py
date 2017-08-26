@@ -55,11 +55,14 @@ def upload_archive(ctx, archive_name, vault_name=None, account_id=None,
             archiveDescription=description,
             body=open(archive_name, 'rb')
         )
-        write_archive_info(archive_name, archive)
+        write_archive_info(archive_name, archive, description)
 
-def write_archive_info(archive_name, archive):
+def write_archive_info(archive_name, archive, description):
     splitted = archive_name.split('/')
-    outdir = '/'.join(splitted[:-1]) + '/glacier-meta'
+    if len(splitted) > 1:
+        outdir = '/'.join(splitted[:-1]) + '/glacier-meta'
+    else:
+        outdir ='./glacier-meta'
     info = {
         'account_id': archive.account_id,
         'vault_name': archive.vault_name,
