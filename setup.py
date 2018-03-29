@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name="photo_organizer",
-    version='0.1.1',
+    version='0.2.0',
     author="Jouni Kallunki",
     author_email="",
     description=("Tool for organizing and backuping photos"),
@@ -16,9 +16,7 @@ setup(
         'docutils==0.13.1',
         'ExifRead==2.1.2',
         'futures==3.0.5',
-        'hachoir-core==1.3.3',
-        'hachoir-metadata==1.3.3',
-        'hachoir-parser==1.3.4',
+        'hachoir3==3.0a2',
         'invoke==0.20.4',
         'jmespath==0.9.0',
         'packaging==16.8',

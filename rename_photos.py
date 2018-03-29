@@ -1,9 +1,8 @@
 import exifread
 from invoke import task
 from os import walk, path, renames
-from hachoir_metadata import extractMetadata
-from hachoir_parser import createParser
-from hachoir_core.cmd_line import unicodeFilename
+from hachoir.metadata import extractMetadata
+from hachoir.parser import createParser
 import hashlib
 import logging
 
@@ -20,7 +19,7 @@ def file_md5(fpath):
 
 def get_video_date(fname):
     try:
-        parser = createParser(unicodeFilename(fname))
+        parser = createParser(fname)
         metadata = extractMetadata(parser)
         v = metadata.getItem('creation_date', 0)
     except:
@@ -33,8 +32,10 @@ def get_video_date(fname):
 
 def get_image_date(fname):
     with open(fname, 'rb') as f:
-        tags = exifread.process_file(f, stop_tag='DateTimeOriginal')
+        tags = exifread.process_file(f, details=False)
         dttag = tags.get('EXIF DateTimeOriginal')
+        if dttag is None:
+            dttag = tags.get('EXIF DateTimeDigitized')
     if dttag is None:
         return None
     else:
@@ -116,6 +117,11 @@ def rename_photos(ctx, input_dir, output_dir, failed_dir='./fail'):
     If renamed file exists, a md5 checksum is calculated
     to check for duplicate file.
     """
+
+    input_dir = path.abspath(input_dir)
+    output_dir = path.abspath(output_dir)
+    failed_dir = path.abspath(failed_dir)
+
     logger.info("Starting photo rename")
     logger.info('input path: {}'.format(input_dir))
     logger.info('output path: {}'.format(output_dir))
