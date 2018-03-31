@@ -10,3 +10,9 @@ run
 photo-organizer --help 
 ```
 to get started
+
+*Install*
+```
+pip3 install git+ssh://git@github.com/jokallun/photo-organizers.git
+```
+Copy the photo_organizer.json to your home dirctory
