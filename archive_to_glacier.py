@@ -89,12 +89,13 @@ def initiate_archive_download(ctx, archive_info, vault_name=None, account_id=Non
     Other argments are optional and default to values in photo-organizer.json
     """
     with VaultCtx(ctx, vault_name, account_id, region) as vault:
-        archive_info = json.load(open(archive_info)),
-        logger.info('Initiating archive {} download'.format(archive_info['id']))
-        archive = vault.Archive(archive_info['id'])
+        if isinstance(archive_info, str):
+            archive_info = json.load(open(archive_info))
+        logger.info('Initiating archive {} download'.format(archive_info['ArchiveId']))
+        archive = vault.Archive(archive_info['ArchiveId'])
         job = archive.initiate_archive_retrieval()
         dt_str = datetime.today().strftime('%Y-%m-%d')
-        fname = 'archive-download-job-{}.json'.format(dt_str)
+        fname = 'archive-download-job-{}-{}.json'.format(dt_str, archive_info['ArchiveId'][:16])
         with open(fname, 'w') as f:
             json.dump({
                 'account_id': job.account_id,
@@ -139,6 +140,22 @@ def download_archive(ctx, job_file=None, job_id=None, account_id=None,
                 f.write(body.read())
         else:
             logger.info('Job {} not completed'.format(job_id))
+
+@task
+def initiate_multiarchive_download(ctx, archive_info, vault_name=None, account_id=None, region=None):
+    """Initiate the archive donwload job for multiple archives.
+
+    After the job has completed (3-5h), the archive
+    can be downloaded with download-archive task.
+    Output file of this task is the input of download-archive
+
+    archive-info is a json file containing the id of the archives as ArchiveId.
+    Input can be produced with inventory.get-vault-inventory task.
+    Other argments are optional and default to values in photo-organizer.json
+    """
+    archivelist = json.load(open(archive_info))['ArchiveList']
+    for archive in archivelist:
+        initiate_archive_download(ctx, archive, vault_name, account_id, region)
 
 def create_archive(path, fnames):
     current_dir = os.getcwd()
