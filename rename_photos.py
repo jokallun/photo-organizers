@@ -30,8 +30,8 @@ def get_video_date(fname):
         return str(v.text).replace('-', ':')
 
 
-def get_image_date(fname):
-    with open(fname, 'rb') as f:
+def get_image_date(fpath):
+    with open(fpath, 'rb') as f:
         tags = exifread.process_file(f, details=False)
         dttag = tags.get('EXIF DateTimeOriginal')
         if dttag is None:
