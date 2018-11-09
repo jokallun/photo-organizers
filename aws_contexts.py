@@ -1,7 +1,9 @@
 import boto3
 
+
 class GlacierCtx(object):
     """Context manager for glacier, sets defaults"""
+
     def __init__(self, ctx, region=None):
         self.region = region or ctx.config['glacier']['region']
         self.glacier = boto3.resource('glacier', region_name=self.region)
@@ -15,6 +17,7 @@ class GlacierCtx(object):
 
 class VaultCtx(GlacierCtx):
     """Context manager for glacier vault, sets defaults"""
+
     def __init__(self, ctx, vault_name=None, account_id=None, region=None):
         GlacierCtx.__init__(self, ctx, region)
         self.account_id = account_id or ctx.config['glacier']['account_id']
@@ -27,13 +30,10 @@ class VaultCtx(GlacierCtx):
 
 class JobCtx(VaultCtx):
     """Context manager for glacier job, sets defaults"""
+
     def __init__(self, ctx, id, vault_name=None, account_id=None, region=None):
         VaultCtx.__init__(self, ctx, vault_name, account_id, region)
-        self.job = self.glacier.Job(
-            account_id=self.account_id,
-            vault_name=self.vault_name,
-            id=id
-        )
+        self.job = self.glacier.Job(account_id=self.account_id, vault_name=self.vault_name, id=id)
 
     def __enter__(self):
         return self.job

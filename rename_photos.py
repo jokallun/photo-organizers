@@ -6,8 +6,7 @@ from hachoir.parser import createParser
 import hashlib
 import logging
 
-logging.basicConfig(format='%(asctime)s:%(name)s:%(levelname)s:%(message)s',
-                    level=logging.INFO)
+logging.basicConfig(format='%(asctime)s:%(name)s:%(levelname)s:%(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
@@ -104,6 +103,7 @@ def get_ts_year(x):
         return int(x[1].split(':')[0])
     except:
         return None
+
 
 @task
 def rename_photos(ctx, input_dir, output_dir, failed_dir='./fail'):

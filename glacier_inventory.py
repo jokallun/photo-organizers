@@ -6,8 +6,7 @@ import logging
 from aws_contexts import GlacierCtx, VaultCtx, JobCtx
 
 
-logging.basicConfig(format='%(asctime)s:%(name)s:%(levelname)s:%(message)s',
-                    level=logging.INFO)
+logging.basicConfig(format='%(asctime)s:%(name)s:%(levelname)s:%(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
@@ -21,6 +20,7 @@ def list_vaults(ctx, region=None):
     with GlacierCtx(ctx, region) as glacier:
         vaults = glacier.list_vaults()
         print(json.dumps(vaults, indent=2))
+
 
 @task
 def get_vault_inventory(ctx, job_file, account_id=None, vault_name=None, region=None):
@@ -49,6 +49,7 @@ def get_vault_inventory(ctx, job_file, account_id=None, vault_name=None, region=
         else:
             logger.info('Job {} not completed'.format(job.id))
 
+
 @task
 def initiate_vault_inventory(ctx, account_id=None, vault_name=None, region=None):
     """Initiate the vault inventory job.
@@ -64,13 +65,14 @@ def initiate_vault_inventory(ctx, account_id=None, vault_name=None, region=None)
         dt_str = datetime.today().strftime('%Y%m%d-%H%M')
         fname = 'inventory-job-{}.json'.format(dt_str)
         with open(fname, 'w') as f:
-            json.dump({
-                'account_id': job.account_id,
-                'vault_name': job.vault_name,
-                'id': job.id
-            }, f, indent=2)
+            json.dump(
+                {'account_id': job.account_id, 'vault_name': job.vault_name, 'id': job.id},
+                f,
+                indent=2,
+            )
             logger.info('Writing vault inventory job info to {}'.format(fname))
             return job
+
 
 @task
 def delete_archives(ctx, file_list, account_id=None, vault_name=None, region=None):

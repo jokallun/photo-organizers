@@ -9,11 +9,11 @@ import hashlib
 from aws_contexts import GlacierCtx, VaultCtx, JobCtx
 
 
-logging.basicConfig(format='%(asctime)s:%(name)s:%(levelname)s:%(message)s',
-                    level=logging.INFO)
+logging.basicConfig(format='%(asctime)s:%(name)s:%(levelname)s:%(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 BLOCKSIZE = 65536
+
 
 def get_checksum(fname):
     hasher = hashlib.md5()
@@ -24,10 +24,12 @@ def get_checksum(fname):
             buf = afile.read(BLOCKSIZE)
     return hasher.hexdigest()
 
+
 def leaf_dirs(rootdir):
     for root, dirs, fnames in os.walk(rootdir):
         if len(dirs) == 0:
             yield root, fnames
+
 
 @task
 def create_vault(ctx, vault_name):
@@ -37,9 +39,17 @@ def create_vault(ctx, vault_name):
         vault = glacier.create_vault(vaultName=vault_name)
         print(vault)
 
+
 @task
-def upload_archive(ctx, archive_name, vault_name=None, account_id=None,
-                   region=None, description=None, add_checksum=True):
+def upload_archive(
+    ctx,
+    archive_name,
+    vault_name=None,
+    account_id=None,
+    region=None,
+    description=None,
+    add_checksum=True,
+):
     """Upload an archive (file) to AWS glacier.
     archive-name is a mandatory argument, others are optional.
     vault-name, account-id and region default to values defined in photo-organizer.json file.
@@ -52,30 +62,31 @@ def upload_archive(ctx, archive_name, vault_name=None, account_id=None,
             checksum = get_checksum(archive_name)
             description = '{} {}'.format(description, checksum)
         archive = vault.upload_archive(
-            archiveDescription=description,
-            body=open(archive_name, 'rb')
+            archiveDescription=description, body=open(archive_name, 'rb')
         )
         write_archive_info(archive_name, archive, description)
+
 
 def write_archive_info(archive_name, archive, description):
     splitted = archive_name.split('/')
     if len(splitted) > 1:
         outdir = '/'.join(splitted[:-1]) + '/glacier-meta'
     else:
-        outdir ='./glacier-meta'
+        outdir = './glacier-meta'
     info = {
         'account_id': archive.account_id,
         'vault_name': archive.vault_name,
         'archive_name': splitted[-1],
         'id': archive.id,
         'description': description,
-        'datetime': datetime.today().strftime('%Y-%m-%d:%H:%M:%S')
+        'datetime': datetime.today().strftime('%Y-%m-%d:%H:%M:%S'),
     }
     if not os.path.isdir(outdir):
         logger.info('creating {}'.format(outdir))
         os.makedirs(outdir)
     with open('{}/glacier-archive-{}.json'.format(outdir, splitted[-1]), 'w') as f:
         json.dump(info, f, indent=2)
+
 
 @task
 def initiate_archive_download(ctx, archive_info, vault_name=None, account_id=None, region=None):
@@ -96,17 +107,19 @@ def initiate_archive_download(ctx, archive_info, vault_name=None, account_id=Non
         job = archive.initiate_archive_retrieval()
         dt_str = datetime.today().strftime('%Y-%m-%d')
         fname = 'archive-download-job-{}-{}.json'.format(dt_str, archive_info['ArchiveId'][:16])
-        with open(fname, 'w') as f:
-            json.dump({
-                'account_id': job.account_id,
-                'vault_name': job.vault_name,
-                'id': job.id
-            }, f, indent=2)
+        with open(fname, 'w') as out_file:
+            json.dump(
+                {'account_id': job.account_id, 'vault_name': job.vault_name, 'id': job.id},
+                out_file,
+                indent=2,
+            )
         logger.info('Writing archive download job info to {}'.format(fname))
 
+
 @task
-def download_archive(ctx, job_file=None, job_id=None, account_id=None,
-                     vault_name=None, region=None):
+def download_archive(
+    ctx, job_file=None, job_id=None, account_id=None, vault_name=None, region=None
+):
     """Download an archive.
 
     This can be run after the initiate-archive-download task
@@ -119,11 +132,7 @@ def download_archive(ctx, job_file=None, job_id=None, account_id=None,
         logger.error('Must give either job_id or job_file!')
         return None
     if job_file is None:
-        job_info = {
-            'account_id': account_id,
-            'vault_name': vault_name,
-            'id': job_id
-        }
+        job_info = {'account_id': account_id, 'vault_name': vault_name, 'id': job_id}
     else:
         job_info = json.load(open(job_file))
     job_info['ctx'] = ctx
@@ -136,13 +145,16 @@ def download_archive(ctx, job_file=None, job_id=None, account_id=None,
             description = download_response['archiveDescription']
             fname = description.split(' ')[0]
             logger.info('Writing downloaded archive to file {}'.format(fname))
-            with open(fname, 'wb') as f:
-                f.write(body.read())
+            with open(fname, 'wb') as out_file:
+                out_file.write(body.read())
         else:
             logger.info('Job {} not completed'.format(job_id))
 
+
 @task
-def initiate_multiarchive_download(ctx, archive_info, vault_name=None, account_id=None, region=None):
+def initiate_multiarchive_download(
+    ctx, archive_info, vault_name=None, account_id=None, region=None
+):
     """Initiate the archive donwload job for multiple archives.
 
     After the job has completed (3-5h), the archive
@@ -157,17 +169,19 @@ def initiate_multiarchive_download(ctx, archive_info, vault_name=None, account_i
     for archive in archivelist:
         initiate_archive_download(ctx, archive, vault_name, account_id, region)
 
+
 def create_archive(path, fnames):
     current_dir = os.getcwd()
     archive_name = '-'.join(path.split('/')[-2:]) + '.zip'
     zip_root_dir = '/'.join(path.split('/')[:-2])
     os.chdir(zip_root_dir)
     logger.info('Creating archive {}/{}'.format(zip_root_dir, archive_name))
-    with ZipFile(archive_name, 'w', ZIP_STORED) as f:
+    with ZipFile(archive_name, 'w', ZIP_STORED) as out_file:
         for input_fname in fnames:
             relative_path = '/'.join(path.split('/')[-2:])
-            f.write('{}/{}'.format(relative_path, input_fname))
+            out_file.write('{}/{}'.format(relative_path, input_fname))
     os.chdir(current_dir)
+
 
 @task
 def archive_tree(ctx, rootdir):

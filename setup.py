@@ -6,9 +6,7 @@ setup(
     author="Jouni Kallunki",
     author_email="",
     description=("Tool for organizing and backuping photos"),
-    entry_points={
-        'console_scripts': ['photo-organizer = main:program.run']
-    },
+    entry_points={'console_scripts': ['photo-organizer = main:program.run']},
     install_requires=[
         'appdirs==1.4.3',
         'boto3==1.4.3',
@@ -23,7 +21,7 @@ setup(
         'pyparsing==2.2.0',
         'python-dateutil==2.6.0',
         's3transfer==0.1.10',
-        'six==1.10.0'
+        'six==1.10.0',
     ],
     py_modules=[
         'archive_to_glacier',
@@ -31,5 +29,6 @@ setup(
         'rename_photos',
         'aws_contexts',
         'tasks',
-        'main']
+        'main',
+    ],
 )
