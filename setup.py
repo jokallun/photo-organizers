@@ -14,7 +14,7 @@ setup(
         'docutils==0.13.1',
         'ExifRead==2.1.2',
         'futures==3.0.5',
-        'hachoir3==3.0a2',
+        'hachoir==3.1.1',
         'invoke==0.20.4',
         'jmespath==0.9.0',
         'packaging==16.8',
@@ -23,12 +23,5 @@ setup(
         's3transfer==0.1.10',
         'six==1.10.0',
     ],
-    py_modules=[
-        'archive_to_glacier',
-        'glacier_inventory',
-        'rename_photos',
-        'aws_contexts',
-        'tasks',
-        'main',
-    ],
+    py_modules=['archive_to_glacier', 'glacier_inventory', 'rename_photos', 'aws_contexts', 'main'],
 )

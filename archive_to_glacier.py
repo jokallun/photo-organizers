@@ -1,4 +1,3 @@
-import boto3
 import os
 import json
 from datetime import datetime
@@ -140,7 +139,6 @@ def download_archive(
         job.reload()
         if job.completed:
             download_response = job.get_output()
-            checksum = download_response['checksum']
             body = download_response['body']
             description = download_response['archiveDescription']
             fname = description.split(' ')[0]

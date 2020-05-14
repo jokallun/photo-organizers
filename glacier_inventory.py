@@ -1,4 +1,3 @@
-import boto3
 import json
 from invoke import task
 from datetime import datetime
@@ -18,7 +17,8 @@ def list_vaults(ctx, region=None):
     in photo-organizer.json
     """
     with GlacierCtx(ctx, region) as glacier:
-        vaults = glacier.list_vaults()
+        gclient = glacier.meta.client
+        vaults = gclient.list_vaults()
         print(json.dumps(vaults, indent=2))
 
 
@@ -84,7 +84,7 @@ def delete_archives(ctx, file_list, account_id=None, vault_name=None, region=Non
     Other  argments are optional and default to values in photo-organizer.json
     """
     archive_infos = json.load(open(file_list))
-    with VaultCtx(ctx, vaultName, account_id, region) as vault:
+    with VaultCtx(ctx, vault_name, account_id, region) as vault:
         for n, info in enumerate(archive_infos.get('ArchiveList')):
             archive = vault.Archive(info['ArchiveId'])
             archive.delete()

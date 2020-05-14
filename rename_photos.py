@@ -21,7 +21,7 @@ def get_video_date(fname):
         parser = createParser(fname)
         metadata = extractMetadata(parser)
         v = metadata.getItem('creation_date', 0)
-    except:
+    except:  # noqa:E722
         return None
     if v is None:
         return None
@@ -101,7 +101,7 @@ def move_failed(fpath, failed_dir):
 def get_ts_year(x):
     try:
         return int(x[1].split(':')[0])
-    except:
+    except:  # noqa: E722
         return None
 
 
