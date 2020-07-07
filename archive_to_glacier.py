@@ -12,6 +12,7 @@ logging.basicConfig(format='%(asctime)s:%(name)s:%(levelname)s:%(message)s', lev
 logger = logging.getLogger(__name__)
 
 BLOCKSIZE = 65536
+MAX_FILES_IN_ZIP = 30
 
 
 def get_checksum(fname):
@@ -60,10 +61,14 @@ def upload_archive(
         if add_checksum:
             checksum = get_checksum(archive_name)
             description = '{} {}'.format(description, checksum)
-        archive = vault.upload_archive(
-            archiveDescription=description, body=open(archive_name, 'rb')
-        )
-        write_archive_info(archive_name, archive, description)
+        try:
+            archive = vault.upload_archive(
+                archiveDescription=description, body=open(archive_name, 'rb')
+            )
+            write_archive_info(archive_name, archive, description)
+            logger.info("Upload succesful {}".format(archive_name))
+        except:  # noqa E722
+            logger.warning("Upload failed {}".format(archive_name))
 
 
 def write_archive_info(archive_name, archive, description):
@@ -168,14 +173,20 @@ def initiate_multiarchive_download(
         initiate_archive_download(ctx, archive, vault_name, account_id, region)
 
 
-def create_archive(path, fnames):
+def create_archive(path, fnames, chdir=True, extension=""):
     current_dir = os.getcwd()
-    archive_name = '-'.join(path.split('/')[-2:]) + '.zip'
+    archive_name = '-'.join(path.split('/')[-2:]) + extension + '.zip'
     zip_root_dir = '/'.join(path.split('/')[:-2])
-    os.chdir(zip_root_dir)
+    if chdir:
+        os.chdir(zip_root_dir)
     logger.info('Creating archive {}/{}'.format(zip_root_dir, archive_name))
     with ZipFile(archive_name, 'w', ZIP_STORED) as out_file:
-        for input_fname in fnames:
+        logger.debug(archive_name)
+        logger.debug(path)
+        for n, input_fname in enumerate(fnames):
+            if n == MAX_FILES_IN_ZIP:
+                create_archive(path, fnames[n:], chdir=False, extension=extension + "_o")
+                break
             relative_path = '/'.join(path.split('/')[-2:])
             out_file.write('{}/{}'.format(relative_path, input_fname))
     os.chdir(current_dir)
